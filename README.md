@@ -54,15 +54,24 @@ Every switch had to beat its "off" setting on **both** halves to stay (`BT_EXPER
 pts / reb / PRA, the probability squeeze for pts / PRA. Dropped: the total for assists and threes, blending with the
 season average, heavier shrinkage, slower minutes.
 
-**What this does not show.** A sportsbook's line is far sharper than a season average. The NFL version of this app was
-tested against real historical prices and **the books beat the model** on every market; the same test has not been run
-for the NBA (it needs historical odds credits). So the app is market-first:
+### Real prices (2025-26, tested Oct 2026)
+`market-backtest.mjs` priced 192 games of 2025-26 with every US book's real lines ~20 minutes before tip (The Odds API
+history, ~10,000 credits) and scored the same leak-free projections against them (Brier, half 1 / half 2):
 
-- a bet's **chance** = the *other* books' price at that line with their cut removed (their nearest line, moved with the
-  model's distribution, when they don't post yours; your book's own two-way price when nobody else prices it), nudged
-  toward the simulator with a 10% weight (borrowed from the NFL result) and **never by more than 3 points**;
-- an **edge** therefore means "your book is out of line with the others", not "the model knows better";
-- **CLV** in the bet log is how you find out whether it's working.
+| Stat | Lines | The other books | Simulator | Best model share (both halves) |
+|---|---|---|---|---|
+| Points | 3,237 | **.2491 / .2502** | .2562 / .2700 | 0 |
+| Rebounds | 2,690 | **.2474 / .2471** | .2552 / .2547 | 0.1 |
+| Assists | 1,942 | **.2489 / .2417** | .2563 / .2529 | 0 |
+| 3-pointers | 2,103 | **.2475 / .2428** | .2546 / .2488 | 0 |
+| Pts+Reb+Ast | 2,490 | **.2497 / .2507** | .2580 / .2710 | 0 |
+
+**The books beat the simulator on every stat, in both halves** — at the books' own lines the simulator alone is worse than
+a coin flip (it only beats a plain season average). Betting every over at the better of FanDuel / DraftKings lost ~6%,
+every under ~4% (threes unders ~0%). Betting when the simulator saw +3% EV lost ~3%. The app's rule — your book better
+than the other books' fair price by 3%+ — was about break-even (−1% to −5% on ~400–500 bets, ranges from −20% to +20%):
+**not proven either way**. So the app now goes by the other books' price (the simulator has no say, except 10% on
+rebounds), an **edge** means "your book is out of line with the others", and **CLV** in the bet log is the scoreboard.
 
 *Not betting advice.*
 

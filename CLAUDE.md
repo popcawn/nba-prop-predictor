@@ -29,13 +29,18 @@ See README.md for the model and its backtest.
 - Players with under `minGames` (5) games of history are `thin`: shown greyed, excluded from the team minutes math and
   never bet (the backtest never scored them).
 
-## Market-first (borrowed from the NFL result, NOT yet tested on NBA prices)
+## Market-first (TESTED on real NBA prices, 2026-10-16)
 - Chance = other books' de-vigged P(over) at the line (`consAt`: exact line, else their nearest line within
   max(1, 12%) moved by the model's distribution; else the book's own two-way price) blended with the model at
-  `PROP_W` = 0.1 and capped at ±`MODEL_CAP` (3 points) — an extreme projection moved a chance 11 points before the cap.
-- `S.marketAnchor.props.w` (from a future `market_anchor.json`) overrides 0.1. A real-price test needs historical
-  odds: 10 credits per market per game — a few hundred games of two markets is ~4–6K credits. ASK before spending.
-- Credits: the user's key is the NFL app's (20K/month plan, nearly spent in Oct 2026). The app never pulls
+  `propW(s)` (fitted per stat on real prices: reb 0.1, rest 0) and capped at ±`MODEL_CAP` (3 points) — an extreme projection moved a chance 11 points before the cap.
+- REAL-PRICE TEST (user upgraded to the 100K plan and asked for it): `market-backtest.mjs` (same file as the NHL repo) —
+  `DUMP_BT=1 SKIP_LIVE=1 node build-nba-snapshot.mjs 2025 2026` writes bt_rows_2026.json (gitignored), then `--go` fetches
+  192 games × 5 markets at start−20 min into market_hist/ (gitignored, ~9.7K credits), `analyze` scores + writes
+  market_anchor.json (committed; the build ships its `.app` as S.marketAnchor). RESULT: other books beat the model on all
+  5 stats both halves (model alone > .25 Brier at book lines). Model share must win BOTH halves -> reb 0.1, rest 0
+  (`propW(s)` in the app reads byStat). ROI: every over −6%, every under −4%; model EV>3% −3%; app rule (market EV>3% at
+  best FD/DK) ≈ −1..−5% on ~400-500 bets (CIs ±20%) = unproven. Don't raise model shares without a new test.
+- Credits: the user's key is the NFL app's (upgraded to the 100K/month plan on 2026-10-16). The app never pulls
   automatically; a slate pull is games × markets credits; `CFG.reserve` (300) asks before going below.
 
 ## App structure (template)

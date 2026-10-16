@@ -1,0 +1,68 @@
+{
+ "builtAt": "2026-10-16T18:26:29.292Z",
+ "sport": "nba",
+ "season": 2026,
+ "snap": "20 min before the start",
+ "stats": {
+  "ast": {
+   "w": 0,
+   "wBothSum": 0.1,
+   "wHalves": {
+    "h1": 0.1,
+    "h2": 0
+   },
+   "n": 1942
+  },
+  "pts": {
+   "w": 0,
+   "wBothSum": 0,
+   "wHalves": {
+    "h1": 0.1,
+    "h2": 0
+   },
+   "n": 3237
+  },
+  "pra": {
+   "w": 0,
+   "wBothSum": 0,
+   "wHalves": {
+    "h1": 0,
+    "h2": 0
+   },
+   "n": 2490
+  },
+  "reb": {
+   "w": 0.1,
+   "wBothSum": 0.1,
+   "wHalves": {
+    "h1": 0.1,
+    "h2": 0.1
+   },
+   "n": 2690
+  },
+  "tpm": {
+   "w": 0,
+   "wBothSum": 0,
+   "wHalves": {
+    "h1": 0,
+    "h2": 0.1
+   },
+   "n": 2103
+  }
+ },
+ "app": {
+  "props": {
+   "w": 0.02,
+   "fitted": true,
+   "season": 2026,
+   "n": 12462,
+   "byStat": {
+    "ast": 0,
+    "pts": 0,
+    "pra": 0,
+    "reb": 0.1,
+    "tpm": 0
+   }
+  }
+ }
+}

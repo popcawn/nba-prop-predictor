@@ -118,8 +118,8 @@
         <details class="muted" style="margin-top:8px;font-size:12px"><summary style="cursor:pointer">ⓘ How to read this</summary>
           <div style="margin-top:6px;line-height:1.6">
             <b>Proj</b> is the simulator's number: expected minutes × the player's per-minute production (recent games count more; last season counts 40%), moved when regulars are out or back, and scaled a little by the game's total. Set a player's status (ACT / Q / OUT) and everyone on his team re-projects.
-            <b>Chance</b> is what a bet is judged on: the <i>other</i> books' price for that line with their cut removed, nudged toward the simulator (10% weight, never more than 3 points). <b>EV</b> compares that chance with the best price at your books (tagged FD / DK …).
-            On two seasons of games the simulator beats a plain season average on all five stats in both halves of the season — but <b>it has not been tested against real NBA prices yet</b>, and in the NFL version the books beat the model. Treat an edge as "your book is out of line with the others", and let the bet log's CLV tell you whether it is working.
+            <b>Chance</b> is what a bet is judged on: the <i>other</i> books' price for that line with their cut removed (rebounds lean 10% toward the simulator, never more than 3 points). <b>EV</b> compares that chance with the best price at your books (tagged FD / DK …).
+            The simulator beats a plain season average on all five stats — but on <b>last season's real prices the books beat it on every stat</b>, so the app goes by the other books' price. An edge means "your book is out of line with the others"; betting those last season came out around break-even, so let the bet log's CLV tell you whether it works for you.
           </div>
         </details>
       </div>
@@ -346,7 +346,10 @@ async function pullAll(only){
 }
 
 // ---------------------------------------------------------------- candidates: every priced side, judged against the market
-const PROP_W=S.marketAnchor&&S.marketAnchor.props&&S.marketAnchor.props.w!=null?S.marketAnchor.props.w:0.1;   // the model's share (NFL-tested value; not NBA-tested yet)
+// the model's share per stat, fitted on 2025-26 REAL prices (market-backtest.mjs, 192 games, ~20 min before tip): the books
+// beat the model on every stat in both halves; only rebounds kept 0.1 (won both halves, by a hair) — the rest are 0
+const MA=S.marketAnchor||{}, PROP_W=MA.props&&MA.props.w!=null?MA.props.w:0.1;
+const propW=s=>MA.props&&MA.props.byStat&&MA.props.byStat[s]!=null?MA.props.byStat[s]:PROP_W;
 // the market's number, nudged toward the simulator — but never by more than MODEL_CAP: the simulator's share is borrowed
 // from the NFL test and unproven here, and in log-odds one extreme projection could otherwise move a chance 10+ points
 const MODEL_CAP=0.03;
@@ -370,7 +373,7 @@ function buildCands(){
         let mo=consAt(board,k,s,off.line,mu), src=mo!=null?'books':null;
         if(mo==null){ const io=americanToProb(parseFloat(off.O.o)), iu=americanToProb(parseFloat(off.U.o)); if(io>0&&iu>0){ mo=io/(io+iu); src='own'; } }
         for(const sd of ['O','U']){ const o=off[sd], dec=oddsDec(o.o); if(!dec) continue; const model=sd==='O'?ps.over:ps.under, mkt=mo!=null?(sd==='O'?mo:1-mo):null;
-          const mp=mkt!=null?blendP(mkt,model,PROP_W):model, bimp=1/dec, ev=mp*dec-1, edge=mp-bimp, conf=confOf(r,src);
+          const mp=mkt!=null?blendP(mkt,model,propW(s)):model, bimp=1/dec, ev=mp*dec-1, edge=mp-bimp, conf=confOf(r,src);
           const tier=mkt==null?'model':edge>0.12?'flag':(ev>=0.03&&edge>=0.015)?'take':'pass';
           out.push({game:g.game, evId:g.id, tip:g.tip, key, name:r.p.name, abbr:r.abbr, pos:r.p.pos, stat:s, side:sd, line:off.line, market:mktKey(s,sd,off.line), odds:o.o, book:o.tk.b, tk:o.tk,
             mu, model, mkt, src, mp, bimp, ev, edge, conf, kelly:edge>0?conf.score*edge/(1-bimp):0, tier}); } } } }
@@ -482,7 +485,7 @@ function renderBets(){
 function renderTest(){ const bt=M.backtest||{}; $('testNote').innerHTML=`<b>How the simulator was tested.</b> Every game of the ${M.test-1}-${String(M.test).slice(2)} season, using only what was known before tip-off (settings learned on ${M.train-1}-${String(M.train).slice(2)}). Each bet was "over / under his season average" — a book-like line — scored separately on the two halves of the season:`+
   `<div class="scroll"><table style="margin-top:6px;max-width:620px"><thead><tr><th class="l">Stat</th><th>Player-games</th><th>Simulator</th><th>Season average</th><th>Avg miss</th></tr></thead><tbody>`+
   STATS.map(s=>{ const x=bt[s]; return x?`<tr><td class="l">${SHORT[s]}</td><td>${x.n.toLocaleString()}</td><td><b>${x.brier[0].toFixed(4)} / ${x.brier[1].toFixed(4)}</b></td><td class="muted">${x.naive[0].toFixed(4)} / ${x.naive[1].toFixed(4)}</td><td>${x.mae[0]} vs ${x.naiveMae[0]}</td></tr>`:''; }).join('')+
-  `</tbody></table></div><div class="muted" style="font-size:12px;margin-top:4px">Lower is better (0.25 = a coin flip). The simulator beats the plain season average on every stat in both halves — but a book's line is far sharper than a season average, and <b>this has not been run against real NBA prices yet</b>. Until it is, the app trusts the other books and gives the simulator a ${Math.round(PROP_W*100)}% say.</div>`; }
+  `</tbody></table></div><div class="muted" style="font-size:12px;margin-top:4px">Lower is better (0.25 = a coin flip). <b>Against real prices</b> (192 games of 2025-26, every US book ~20 minutes before tip): the other books' price beat the simulator on every stat in both halves, and the simulator alone was worse than a coin flip at the books' lines. Betting every over lost about 6%, every under about 4%; the app's rule (your book better than the others' fair price by 3%+) came out about break-even on a few hundred bets — not proven either way. So the app trusts the other books: the simulator gets no say, except 10% on rebounds.</div>`; }
 function renderAll(){ buildCands(); buildCard(); renderSlate(); renderGame(); renderBoard(); renderCard(); renderBets(); oddsStatus(); }
 
 // ---------------------------------------------------------------- auto-settle (ESPN box scores) and closing prices

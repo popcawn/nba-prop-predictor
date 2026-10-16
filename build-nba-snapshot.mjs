@@ -169,7 +169,7 @@ function score(M, P, rows) {
     const slope = M.calib && M.calib.includes(s) ? { 1: slopeOf(pop.filter(x => x.r.half === 2)), 2: slopeOf(pop.filter(x => x.r.half === 1)), all: slopeOf(pop) } : { 1: 1, 2: 1, all: 1 };
     for (const x of pop) { const h = H[x.r.half], p = squeeze(x.p0, slope[x.r.half]), o = x.o; h.b += (p - o) ** 2; h.n++; h.ae += Math.abs(x.mu - x.y);
       const c = cal[Math.min(4, Math.floor(p * 5))]; c.n++; c.p += p; c.y += o; }
-    out[s] = { n: pop.length, b1: H[1].b / H[1].n, b2: H[2].b / H[2].n, mae1: H[1].ae / H[1].n, mae2: H[2].ae / H[2].n,
+    out[s] = { n: pop.length, tabs, slopeH: { 1: slope[1], 2: slope[2] }, b1: H[1].b / H[1].n, b2: H[2].b / H[2].n, mae1: H[1].ae / H[1].n, mae2: H[2].ae / H[2].n,
       slope: slope.all, cal: cal.filter(c => c.n >= 60).map(c => ({ pred: +(c.p / c.n).toFixed(3), actual: +(c.y / c.n).toFixed(3), n: c.n })), table: ratioTable(pop, M) };
   }
   return out;
@@ -201,6 +201,15 @@ if (process.env.BT_EXPERIMENTS) {
 }
 export const BACKTEST = { train: TRAIN, test: TEST, params: P, stats: Object.fromEntries(STATS.map(s => [s, { n: R[s].n, brier: [+f4(R[s].b1), +f4(R[s].b2)], naive: [+f4(NV[s].b1), +f4(NV[s].b2)],
   mae: [+f2(R[s].mae1), +f2(R[s].mae2)], naiveMae: [+f2(NV[s].mae1), +f2(NV[s].mae2)], cal: R[s].cal, beatsNaive: R[s].b1 < NV[s].b1 && R[s].b2 < NV[s].b2 }])) };
+// DUMP_BT=1: every test-season row's leak-free projection + the cross-fitted tables it is scored with -> bt_rows_<season>.json
+// (gitignored) for market-backtest.mjs, which prices the same rows against real sportsbook lines
+if (process.env.DUMP_BT) {
+  const games = GL[TEST].games.map(g => ({ id: g.id, d: g.d, h: g.h, a: g.a }));
+  const rows = testRows.map(r => ({ g: GL[TEST].games[r.gi].id, pid: r.pid, half: r.half, mu: Object.fromEntries(STATS.map(st => [st, +projRow(st, r, P).toFixed(3)])), act: r.act }));
+  const out = { season: TEST, builtAt: new Date().toISOString(), games, names, rows, stats: Object.fromEntries(STATS.map(st => [st, { tabs: R[st].tabs, slopeH: R[st].slopeH }])) };
+  fs.writeFileSync(path.join(__dirname, `bt_rows_${TEST}.json`), JSON.stringify(out));
+  log(`  DUMP_BT: wrote bt_rows_${TEST}.json (${rows.length} player-games)`);
+}
 if (process.env.SKIP_LIVE) process.exit(0);
 
 // ------------------------------------------------------------------ live snapshot: teams, rosters, each player's inputs
