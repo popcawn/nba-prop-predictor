@@ -5,6 +5,11 @@ points+rebounds+assists — prices them against the sportsbooks, and tells you w
 much. Sister app to the [NFL anytime-TD simulator](https://github.com/popcawn/nfl-td-predictor); same ideas, same
 honesty rules.
 
+## One site, one pot
+The NFL, NBA and NHL simulators are one site: the 🏈 · 🏀 · 🏒 switcher at the top moves between them, and they share
+**one bankroll** — a bet settled in any sport moves it, and every stake is a % of it. ☁ Sync (set up once in the NFL
+app) keeps all three sports' bets the same on every device.
+
 ## Using it
 - **Games** — tonight's slate (ESPN, live). Click a game to see both teams; ⚡ on a game pulls just that game's prices.
 - **Players** — for each player: projected minutes and the projection for the stat tab you're on, his season average,
