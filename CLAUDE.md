@@ -80,6 +80,11 @@ See README.md for the model and its backtest.
   vs the price's chance, EV, an Open-on-<book> link). The internals (pulls, card rules, staking, log) did not change.
 - Same day the NBA app caught up with the NHL app: phone tabs, NEW / NO NEW BETS status, BetMGM + Caesars bet-slip links
   (your state; falls back to the NFL app's), Fanatics opens by hand, BetRivers removed (not in the user's state).
+- Name: PROP SIM (tab title, brand, front door; user 2026-10-19). Switching sports must feel seamless: links go STRAIGHT to
+  `<repo>/<repo>.html` — never the folder (its index.html is only a redirect for old links/bookmarks, and linking it
+  flashed a page between sports). Cross-document view transitions (`@view-transition`, the top bar held by
+  `view-transition-name`), a speculation-rules PREFETCH on hover (prefetch only — prerender would run the page's JS and
+  could spend odds credits), and `sims_chip` (the last pot boxes, shown instantly before the live render).
 
 ## The user
 - Bets FanDuel + DraftKings, wants a short answer ("what do I bet and how much, in dollars"), gets overwhelmed by
