@@ -49,7 +49,7 @@ See README.md for the model and its backtest.
 - `loadSlate()` = today's regular-season games, else the next day that has some (10 days ahead). `teamProj()` =
   minutes after absences + projection per stat. `parseBoard()` = an Odds API body → `offers` (box line + other-line
   offers from your books, each side with a ticket), `cons` (other books), `mine` (each of your books' own lines, for
-  closes). `buildCands()` → `buildCard()` (¼ Kelly, 1/player, 2/team, 3/game, night cap 12%, bet cap 3u).
+  closes). `buildCands()` → `buildCard()` (¼ Kelly, every take, 1 per player per stat, night cap 12%, bet cap 3u).
 - Bets carry `ev` (ESPN event id) → `autoSettle()` reads that game's box score (DNP = push). `closeView()` = the bet's
   book's price at the bet's line (translated when the line moved); every pull writes `b.cur` (live CLV).
 - Not built yet (exists in the NFL app if the user asks): slip / parlays, fun picks. (Gist sync and automatic closes,
@@ -123,6 +123,9 @@ See README.md for the model and its backtest.
 - The ⚡ Bets list is grouped BY SPORTSBOOK (user, 2026-10-21: "doesnt need to stacked. or even seperated by game … if
   anything seperate by book"): FanDuel, DraftKings, BetMGM, Caesars, Fanatics; each section is one grid of cards with an
   "Open all N on <book>" button, and each card names its game and start time. Fanatics (no slip link) opens its home page.
+- Tonight's card shows EVERY take (user, 2026-10-21: "remove show up to, show all take bets"): no bets-a-night select, no
+  team or game limit — one bet per player per STAT (statOf(); a stat in your log holds it at any line; logBet refuses a
+  second). NIGHT_CAP (12%) still scales the stakes down when there are many, so the night's total risk doesn't grow.
 
 ## The user
 - Bets FanDuel + DraftKings, wants a short answer ("what do I bet and how much, in dollars"), gets overwhelmed by
