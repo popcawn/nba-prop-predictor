@@ -136,6 +136,8 @@ See README.md for the model and its backtest.
   "k is not defined". Put notes on their own line above.
 - Priced list: the ✓ on a logged bet takes it back OUT of the log (user, 2026-10-21: "i cant remove a logged bet") — hover
   reads "✕ remove", a confirm names the bet, then it is deleted like the bet log's ✕ (a sync tombstone, so other devices drop it).
+- NO NIGHTLY CAP (user, 2026-10-21: "no cap on nhl or nba either"): NIGHT_CAP removed — each bet is sized on its own (¼ Kelly,
+  ≤ BET_CAP 3u), so a big night adds up. Don't re-add a total cap unless the user asks.
 
 ## The user
 - Bets FanDuel + DraftKings, wants a short answer ("what do I bet and how much, in dollars"), gets overwhelmed by
