@@ -55,6 +55,28 @@ See README.md for the model and its backtest.
 - Not built yet (exists in the NFL app if the user asks): slip / parlays, fun picks. (Gist sync and automatic closes,
   incl. history-based ones, are built — see below.)
 
+## Filters + 🕶 background log (2026-10-23, user: "add both filters … these bets will still be pulled but not shown to me
+## and logged to your own bet sheet … if the trend changes you can tell me")
+- FILTERS = {tpm: 3-pointers, pra: Pts+Reb+Ast}: of the 1,034 bets the app's rule made on last season's real prices
+  (all 5 of the user's books), 3PT lost 7.5% (126) and PRA 1.7% (199), both down in BOTH halves; the rest made +6.5%
+  (assists +15.8%, points +6.5% — both halves up). Min EV stays 3% (tested; raising it lost money).
+  The markets stay ticked so these are still priced.
+- A filtered take gets `tier='filtered'` + `c.why` (filter keys) in `buildCands()` (after the tiers, before the
+  same-side de-dup, where an unfiltered price at another book wins over a filtered one). Never on the card; on the Priced
+  list only with "show prices with no edge" (verdict 🕶 filtered). Toggles: `.filtchk` under odds settings → `FILT`
+  (localStorage `nbap_filt`), default ON. The 📓 button can still log one by hand.
+- 🕶 BACKGROUND LOG (`SHADOW`, localStorage `nbap_shadow`): `recordShadow()` (end of `buildCard()`) stores one record
+  per game + player + stat the filters hid — id `sh|game|key|stat` (deterministic, so two devices record the same
+  bet), price when first seen, `evp` (EV), `why`, the card's stake (+ `usd`). `autoSettle()` settles them with the
+  real bets (same ESPN fetch; not counted in the note; not in ESPN's box 36 h after the start = void). Close = a pull
+  in the last 30 min before the start (`applyBoard`; no extra credits — none are pulled just for these). Rides in the
+  ☁ Sync file as `shadow` (`mergeShadow`: more known wins, then the earlier record — so devices converge instead of
+  overwriting each other on every sync). In the export. Never in the bankroll or the bet log.
+- Log → ⚙ More → 🕶 Background bets: per filter — bets, record, flat ROI (1u), CLV, P/L at the card's stakes, verdict
+  (<30 settled "too early", ≤−3% "still losing", ≥+3% on 100+ settled "📈 winning now"). A filter that's ON and "winning
+  now" puts a note above the log (`#shadowAlert`). When the user asks how the filters are doing: read `nbap_shadow` from
+  their Chrome (read-only) and re-run the breakdown on it; re-test before suggesting a filter come off.
+
 ## ⚡ Automatic closing prices (2026-10-20 — the NHL log had 16 bets with NO Close on any, so no CLV)
 - The NFL app's rule, ported (the NHL app has the same code). `autoCloses()` runs 8 s after opened() (after the first
   sync), every 2 min, and on `visibilitychange` (phones pause timers): `autoLiveCloses()` then `autoHistCloses()`.
