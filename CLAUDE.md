@@ -44,6 +44,7 @@ See README.md for the model and its backtest.
   own for closing prices (below); a slate pull is games × markets credits; `CFG.reserve` (300) asks before going below.
 
 ## App structure (template)
+- ALL FIVE BOOKS BY DEFAULT (2026-10-24, user: "is it intentional to have betmgm turned off for nba" — no): the book list is saved per device and a new device started with FanDuel + DraftKings only (the user's desktop had all five; the phone likely not). Default is now FD, DK, BetMGM, Caesars, Fanatics; a device that saved fewer gets the rest added ONCE (`nbap_oddscfg.booksV2`, kept by the settings save); unticking after that sticks. Don't drop books from the default: the real-price test found the NBA edge in shopping all five.
 - State in localStorage, prefix `nbap_`: bets, bank, boards (3 days), status (per slate day), oddscfg, oddskey
   (falls back to the NFL app's `nfltd_oddskey` — same origin on GitHub Pages).
 - `loadSlate()` = today's regular-season games, else the next day that has some (10 days ahead). `teamProj()` =
