@@ -169,7 +169,8 @@ See README.md for the model and its backtest.
   columns than fit 390px gets class "pcards" and labelCells(container) after it is drawn — under 760px each row becomes a
   small card (name on top, 3-column grid of numbers, each with its column name from data-l above it). Used by By
   sportsbook, Background bets and NFL's When you bet. A NEW WIDE TABLE MUST DO THE SAME or sit in a .scroll box, never
-  widen the page.
+  widen the page. WIDE SCREENS TOO (2026-11-01, user screenshot): Background bets ran ~65px past its box on a ~1000px screen (long
+  verdicts never wrapped) -> table.bkstat td.l wraps and #shadowStats table.bkstat is width:auto; max-width:100%.
 - ⏱ MID-GAME SETTLING (2026-11-01, user: "are you able to settle bets mid game?" → "yes"): a bet is due once its game
   starts (was start + 2 h). While ESPN says state 'in', an over already past its line wins and its under loses (every stat
   here only counts up); nothing else is touched (DNP, not-yet overs, live unders wait). Background (SHADOW) bets too.
