@@ -654,7 +654,7 @@ function gamePlayers(g){ const out=[]; for(const ab of [g.away,g.home]) for(cons
 // an event-odds body -> this game's board:
 //   offers[stat|key] = [{line, O:{o,tk}, U:{o,tk}, book?}]  first = the box's line (FanDuel's when it lists him) with your best
 //                      price per side; a book with a different line follows as its own offer
-//   cons[stat|key]   = {line: the OTHER books' median de-vigged P(over)}
+//   cons[stat|key]   = {line: median de-vigged P(over) of every book except the two you'd bet there (your best over / under)}
 //   mine[stat|key]   = {book: [{line, O, U}]}  each of your books' own lines (for closing prices)
 function parseBoard(j, g){
   const mine=myBooks(), players=gamePlayers(g), board={t:Date.now(), offers:{}, cons:{}, mine:{}, n:0, miss:[]}, raw={}, consRaw={};
@@ -662,8 +662,14 @@ function parseBoard(j, g){
     for(const o of m.outcomes){ if(o.point==null||(o.name!=='Over'&&o.name!=='Under')) continue; const k=o.description+'|'+o.point; (pairs[k]=pairs[k]||{name:o.description, line:+o.point})[o.name==='Over'?'O':'U']=o; }
     for(const q of Object.values(pairs)){ if(!q.O||!q.U) continue; const p=matchPlayer(q.name, players); if(!p){ if(isMine&&!board.miss.includes(q.name)) board.miss.push(q.name); continue; } const key=s+'|'+p.key;
       if(isMine){ ((raw[key]=raw[key]||{})[bk.key]=raw[key][bk.key]||[]).push({line:q.line, O:{o:fmtAm(q.O.price), p:q.O.price, tk:tkOf(bk.key,q.O)}, U:{o:fmtAm(q.U.price), p:q.U.price, tk:tkOf(bk.key,q.U)}}); }
-      else { const io=americanToProb(q.O.price), iu=americanToProb(q.U.price); ((consRaw[key]=consRaw[key]||{})[q.line]=consRaw[key][q.line]||[]).push(io/(io+iu)); } } }
-  for(const [key,o] of Object.entries(consRaw)){ board.cons[key]={}; for(const [l,xs] of Object.entries(o)) board.cons[key][l]=median(xs); }
+      const io=americanToProb(q.O.price), iu=americanToProb(q.U.price); ((consRaw[key]=consRaw[key]||{})[q.line]=consRaw[key][q.line]||[]).push({b:bk.key, p:io/(io+iu), O:q.O.price, U:q.U.price}); } }
+  // CONSENSUS (2026-11-05 real-price test, user: "yes run the test and switch them"): every book except the two you'd bet at
+  // this line (your best over and best under price). It was only the books that aren't yours (~2 at a line once all five of
+  // yours were on, so one odd book could fake an edge). 2025-26 saved prices (192 games, 14,338 lines): Brier better on both
+  // halves, raw and calibrated (raw .24818/.24674 vs .24835/.24690; pts+reb+ast .24856/.24722 vs .24864/.24737)
+  for(const [key,o] of Object.entries(consRaw)){ board.cons[key]={}; for(const [l,xs] of Object.entries(o)){
+    const my=xs.filter(x=>mine.includes(x.b)), top=k=>my.slice().sort((x,y)=>(y[k]-x[k])||(mine.indexOf(x.b)-mine.indexOf(y.b)))[0], bo=top('O'), bu=top('U');
+    const ps=xs.filter(x=>!(bo&&x.b===bo.b)&&!(bu&&x.b===bu.b)).map(x=>x.p); if(ps.length) board.cons[key][l]=median(ps); } }
   for(const [key,byBook] of Object.entries(raw)){
     board.mine[key]=Object.fromEntries(Object.entries(byBook).map(([b,arr])=>[b, arr.map(x=>({line:x.line, O:x.O.o, U:x.U.o}))]));
     const mainOf=b=>{ const A=byBook[b]; if(!A) return null; return A.slice().sort((x,y)=>Math.abs(americanToProb(x.O.p)-americanToProb(x.U.p))-Math.abs(americanToProb(y.O.p)-americanToProb(y.U.p)))[0]; };

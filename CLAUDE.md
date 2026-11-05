@@ -30,7 +30,15 @@ See README.md for the model and its backtest.
   never bet (the backtest never scored them).
 
 ## Market-first (TESTED on real NBA prices, 2026-10-16)
-- Chance = other books' de-vigged P(over) at the line (`consAt`: exact line, else their nearest line within
+- CONSENSUS FIX (2026-11-05, user: "yes run the test and switch them", after the NFL app's TD fix): `cons` = median
+  de-vigged P(over) of EVERY book except the two you'd bet at that line (your best over and best under price); it was only
+  the books that aren't yours (~2 at a line once all five of yours were on). Test (scratch nbanhl-test.mjs on market_hist/ +
+  bt_rows_2026.json, 192 games, 14,338 lines every rule prices; calibration cross-fit by half): Brier better on BOTH halves,
+  raw .24818/.24674 vs .24835/.24690, calibrated .24824/.24682 vs .24837/.24698; pts+reb+ast alone .24856/.24722 vs
+  .24864/.24737 (ast alone was worse both halves, pts/pra/reb/tpm better). 633 more lines get a market chance. Flat EV>3%
+  ROI didn't favour it (pts+reb+ast +4.9%/+6.8% old vs -0.8%/+4.2% new, ~200-400 bets a half = noise); NBA is paper-only.
+  Per-side (drop only the book bet on that side) was a hair more accurate still but needs two numbers per line — not done.
+- Chance = the books' de-vigged P(over) at the line, as above (`consAt`: exact line, else their nearest line within
   max(1, 12%) moved by the model's distribution; else the book's own two-way price) blended with the model at
   `propW(s)` (fitted per stat on real prices: reb 0.1, rest 0) and capped at ±`MODEL_CAP` (3 points) — an extreme projection moved a chance 11 points before the cap.
 - REAL-PRICE TEST (user upgraded to the 100K plan and asked for it): `market-backtest.mjs` (same file as the NHL repo) —
