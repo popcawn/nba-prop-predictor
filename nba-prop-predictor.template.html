@@ -572,7 +572,7 @@ function applyBotCloses(c){ const C=(c&&c.closes)||{}; let sh=0, bt=0;
   for(const r of SHADOW) if(!r.closeOdds&&C[r.id]){ r.closeOdds=C[r.id].o; sh++; }
   for(const b of bets) if(!b.closeOdds&&C[b.id]){ b.closeOdds=C[b.id].o; b.closeSrc='bot'; bt++; }
   if(sh) saveShadow(); if(bt){ stampChanges(); lsW('nbap_bets', bets); } if(sh||bt) renderAll(); return sh+bt; }
-let TOMB=lsJ('nbap_tomb', {})||{}, SYNC_ERR=null, SYNC_OK=0, syncBusy=false, syncAgain=false, syncTimer=null;
+let TOMB=lsJ('nbap_tomb', {})||{}, SYNC_ERR=null, SYNC_OK=0, syncBusy=false, syncAgain=false, syncTimer=null, followTimer=null;
 const recBody=r=>{ const {mt, ...rest}=r; return JSON.stringify(rest); }, snapOf=L=>new Map(L.map(r=>[r.id, recBody(r)]));
 let betSnap=snapOf(bets);
 function stampChanges(){ const now=Date.now(), seen=new Set(); for(const r of bets){ seen.add(r.id); if(betSnap.get(r.id)!==recBody(r)) r.mt=now; delete TOMB[r.id]; } for(const k of betSnap.keys()) if(!seen.has(k)) TOMB[k]=now; betSnap=snapOf(bets); lsW('nbap_tomb', TOMB); }
@@ -588,7 +588,10 @@ async function gh(p, opt){ opt=opt||{}; const r=await fetch(GH+p, {method:opt.me
 function syncSoon(ms){ if(!syncCfg().token) return; clearTimeout(syncTimer); syncTimer=setTimeout(syncNow, ms==null?2500:ms); }
 function syncNote(){ const el=$('syncNote'); if(!el) return; const C=syncCfg();
   el.innerHTML=!C.token?'<a href="../nfl-td-predictor/nfl-td-predictor.html" title="☁ Sync keeps your bets the same on every device — set it up once in the NFL app\'s bet log; it covers all three sports">☁ Sync: set up in 🏈 NFL</a>':SYNC_ERR?`<span style="color:var(--warn)">☁ ${esc(SYNC_ERR)}</span>`:SYNC_OK?`☁ synced ${new Date(SYNC_OK).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}`:'☁ Sync on'; }
-async function syncNow(){ const C=syncCfg(); if(!C.token){ syncNote(); return; } if(syncBusy){ syncAgain=true; return; } syncBusy=true;
+// S3 (2026-11-11 audit, the NFL app's fix 9): the sync is read -> merge -> write with no version check, so two devices
+// writing in the same second leave the gist without one device's newest bet until that device syncs again. After a write
+// this page syncs ONCE more, 8 s later (follow === true never chains, so two devices can't ping-pong).
+async function syncNow(follow){ const C=syncCfg(); if(!C.token){ syncNote(); return; } if(syncBusy){ syncAgain=true; return; } syncBusy=true; let wrote=false;
   try{ let gid=C.gistId;
     if(!gid){ for(let page=1; page<=5&&!gid; page++){ const list=await gh(`/gists?per_page=100&page=${page}`); const hit=list.find(x=>x.files&&(x.files['nfl-td-sync.json']||x.files[SYNC_FILE])); if(hit) gid=hit.id; if(list.length<100) break; }
       if(!gid){ SYNC_ERR='open the NFL app once to start sync'; return; } }
@@ -601,10 +604,10 @@ async function syncNow(){ const C=syncCfg(); if(!C.token){ syncNote(); return; }
       betSnap=snapOf(bets); lsW('nbap_bets', bets); lsW('nbap_tomb', TOMB); if(JSON.stringify(bets)!==before) renderAll(); }
     applyBotCloses(await gistJson(gist, CLOSES_FILE));
     const mine={app:'nba-prop-predictor', v:1, at:new Date().toISOString(), bets, tomb:TOMB, bank:BANK, shadow:SHADOW}, canon=p=>JSON.stringify([p.bets, p.tomb, p.bank||null, p.shadow||[]]);
-    if(!remote||canon(mine)!==canon(remote)) await gh('/gists/'+gid, {method:'PATCH', body:JSON.stringify({files:{[SYNC_FILE]:{content:JSON.stringify(mine)}}})});
+    if(!remote||canon(mine)!==canon(remote)){ await gh('/gists/'+gid, {method:'PATCH', body:JSON.stringify({files:{[SYNC_FILE]:{content:JSON.stringify(mine)}}})}); wrote=true; }
     SYNC_OK=Date.now(); SYNC_ERR=null;
   }catch(e){ SYNC_ERR=e.status===401?'token rejected — reconnect ☁ Sync in the NFL app':(e.status===403||e.status===404)?'GitHub refused — check ☁ Sync in the NFL app':'offline — will retry'; }
-  finally{ syncBusy=false; syncNote(); if(syncAgain){ syncAgain=false; syncSoon(400); } } }
+  finally{ syncBusy=false; syncNote(); if(syncAgain){ syncAgain=false; syncSoon(400); } else if(wrote&&follow!==true){ clearTimeout(followTimer); followTimer=setTimeout(()=>syncNow(true), 8000); } } }
 function saveBets(){ stampChanges(); lsW('nbap_bets', bets); renderAll(); syncSoon(); }
 
 // ---------------------------------------------------------------- odds: your books, tickets, links, the other books
@@ -684,7 +687,7 @@ function parseBoard(j, g){
   // halves, raw and calibrated (raw .24818/.24674 vs .24835/.24690; pts+reb+ast .24856/.24722 vs .24864/.24737)
   for(const [key,o] of Object.entries(consRaw)){ board.cons[key]={}; for(const [l,xs] of Object.entries(o)){
     const my=xs.filter(x=>mine.includes(x.b)), top=k=>my.slice().sort((x,y)=>(y[k]-x[k])||(mine.indexOf(x.b)-mine.indexOf(y.b)))[0], bo=top('O'), bu=top('U');
-    const ps=xs.filter(x=>!(bo&&x.b===bo.b)&&!(bu&&x.b===bu.b)).map(x=>x.p); if(ps.length) board.cons[key][l]=median(ps); } }
+    const ps=xs.filter(x=>!(bo&&x.b===bo.b)&&!(bu&&x.b===bu.b)).map(x=>x.p); if(ps.length){ board.cons[key][l]=median(ps); ((board.consN=board.consN||{})[key]=board.consN[key]||{})[l]=ps.length; } } }
   for(const [key,byBook] of Object.entries(raw)){
     board.mine[key]=Object.fromEntries(Object.entries(byBook).map(([b,arr])=>[b, arr.map(x=>({line:x.line, O:x.O.o, U:x.U.o}))]));
     const mainOf=b=>{ const A=byBook[b]; if(!A) return null; return A.slice().sort((x,y)=>Math.abs(americanToProb(x.O.p)-americanToProb(x.U.p))-Math.abs(americanToProb(y.O.p)-americanToProb(y.U.p)))[0]; };
@@ -704,7 +707,7 @@ async function pullGame(g, markets){
 }
 // a pull updates the game's board, and every open bet on it: its book's current price at the bet's own line (live CLV)
 function applyBoard(g, board, partial){
-  if(partial&&BOARDS[g.game]){ const B=BOARDS[g.game]; for(const f of ['offers','cons','mine']) Object.assign(B[f], board[f]); B.ft=B.ft||B.t; B.t=Date.now(); if(board.ko) B.ko=board.ko; } else BOARDS[g.game]=board;
+  if(partial&&BOARDS[g.game]){ const B=BOARDS[g.game]; for(const f of ['offers','cons','mine']) Object.assign(B[f], board[f]); B.consN=Object.assign(B.consN||{}, board.consN||{}); B.ft=B.ft||B.t; B.t=Date.now(); if(board.ko) B.ko=board.ko; } else BOARDS[g.game]=board;
   for(const b of bets){ if(b.result!=='pending'||b.game!==g.game||!b.key) continue; const st=b.market.split('|')[1]; if(!Object.keys(board.mine).some(k=>k.startsWith(st+'|'))) continue;
     const v=closeView(b, board); if(v){ b.cur={q:v.odds, l:v.line, o:v.raw, t:Date.now()}; delete b.offBoard; } else { b.offBoard='no longer offered'; delete b.cur; } }
   let shc=0; for(const r of SHADOW){ const k0=Date.parse(r.ko||0); if(r.result!=='pending'||r.game!==g.game||!(k0>Date.now())||k0-Date.now()>30*60e3) continue;
@@ -741,6 +744,12 @@ const propW=s=>MA.props&&MA.props.byStat&&MA.props.byStat[s]!=null?MA.props.bySt
 const MODEL_CAP=0.03;
 const blendP=(mkt,model,w)=>clamp(expit((1-w)*logit(clamp(mkt,0.003,0.995))+w*logit(clamp(model,0.003,0.995))), mkt-MODEL_CAP, mkt+MODEL_CAP);
 // the other books' de-vigged P(over) at a line; if none posted it, their nearest line moved here by the model's own distribution
+// 🔢 HOW MANY BOOKS MADE THE MARKET (2026-11-11 audit, B1 — logging only, as in the NHL app): the consensus is every book
+// except the two you'd bet, and one book is enough to make it. Every bet and background bet keeps nOth = that count at its
+// line (nNear = it came from the nearest line), so a later review can split results by it. Same lookup as consAt.
+function consInfo(board, key, line){ const o=(board.consN||{})[key]; if(!o) return {}; if(o[line]!=null) return {nOth:o[line]};
+  const tol=Math.max(1, 0.12*line); let best=null; for(const k of Object.keys(o)){ const L2=+k; if(Math.abs(L2-line)<=tol&&(best==null||Math.abs(L2-line)<Math.abs(best-line))) best=L2; }
+  return best==null?{nOth:0}:{nOth:o[best], nNear:1}; }
 function consAt(board, key, s, line, mu){ const o=board.cons[key]; if(!o) return null; if(o[line]!=null) return o[line];
   const tol=Math.max(1, 0.12*line); let best=null; for(const k of Object.keys(o)){ const L2=+k; if(Math.abs(L2-line)<=tol&&(best==null||Math.abs(L2-line)<Math.abs(best-line))) best=L2; }
   if(best==null) return null; const a=propSides(mu,s,line), b=propSides(mu,s,best); return a&&b?clamp(o[best]+a.over-b.over,0.02,0.98):null; }
@@ -782,7 +791,7 @@ function buildCands(){
         for(const sd of ['O','U']){ const o=off[sd], dec=oddsDec(o.o); if(!dec) continue; const model=sd==='O'?ps.over:ps.under, mkt=mo!=null?(sd==='O'?mo:1-mo):null;
           const mp=mkt!=null?blendP(mkt,model,propW(s)):model, bimp=1/dec, ev=mp*dec-1, edge=mp-bimp, conf=confOf(r,src);
           let tier=mkt==null?'model':edge>0.12?'flag':(ev>=0.03&&edge>=0.015)?'take':'pass';
-          out.push({game:g.game, evId:g.id, tip:g.tip, key, name:r.p.name, abbr:r.abbr, pos:r.p.pos, stat:s, side:sd, line:off.line, market:mktKey(s,sd,off.line), odds:o.o, book:o.tk.b, tk:o.tk,
+          out.push({game:g.game, evId:g.id, tip:g.tip, key, name:r.p.name, abbr:r.abbr, pos:r.p.pos, stat:s, side:sd, line:off.line, market:mktKey(s,sd,off.line), odds:o.o, book:o.tk.b, tk:o.tk, ...consInfo(board, k, off.line),
             mu, model, mkt, src, mp, bimp, ev, edge, conf, kelly:edge>0?conf.score*edge/(1-bimp):0, tier}); } } } }
   // a take a filter hides is still priced (and tracked in the background), never bet — and it gives way to the same side at another book
   for(const c of out){ if(c.tier!=='take') continue; const w=filtWhy(c); if(w.length){ c.tier='filtered'; c.why=w; } }
@@ -814,6 +823,12 @@ function buildCard(){
   for(const c of CANDS.filter(c=>c.tier==='take'&&!c.dup).sort((a,b)=>b.kelly-a.kelly)){ const pk=c.game+'|'+c.key+'|'+statOf(c.market);
     if(seen.has(pk)||SKIP[pk]) continue; seen.add(pk);
     picks.push(Object.assign({}, c, {stake:Math.max(0.1, Math.min(BET_CAP, Math.round(0.25*STAKE_SCALE*c.kelly*UNITS*10)/10)), held:held.has(pk)})); }
+  // 👤 ONE PLAYER, ONE BET'S WORTH (2026-11-11 audit, S4; user: "fix S4"): every take still shows, but a player's bets in one
+  // game (points + rebounds + assists; shots + points) ride on the same night from him, so together they get at most
+  // BET_CAP — best bet first, counting what is already in your log on him. A bet left with under 0.1u is dropped.
+  { const used=new Map(); for(const b of bets) if(b.result==='pending'&&b.key){ const k=b.game+'|'+b.key; used.set(k, (used.get(k)||0)+(+b.stake||0)); }
+    for(const p of picks){ if(p.held) continue; const k=p.game+'|'+p.key, u=used.get(k)||0, s=Math.round(Math.max(0, Math.min(p.stake, BET_CAP-u))*10)/10; if(s<p.stake) p.capped=true; p.stake=s; used.set(k, u+s); }
+    for(let i=picks.length-1;i>=0;i--) if(!picks[i].held&&picks[i].stake<0.1) picks.splice(i,1); }
   if(PAPER){ ROOM=null; CARD=[]; PAPERCARD=picks.filter(p=>!p.held); recordShadow(PAPERCARD); return; }
   PAPERCARD=[];
   ROOM=fitRoom(picks.filter(p=>!p.held), p=>roundUsd(p.stake*(unitUsd()||0)));
@@ -821,7 +836,7 @@ function buildCard(){
 }
 function recordShadow(paper){ const have=new Set(SHADOW.map(r=>r.id)), k=unitUsd(); let n=0;
   const add=(c, why, stake)=>{ const id='sh|'+c.game+'|'+c.key+'|'+c.stat; if(have.has(id)) return; have.add(id);
-    SHADOW.push({id, ts:new Date().toISOString(), ko:c.tip, ev:c.evId, game:c.game, key:c.key, player:c.name, market:c.market, odds:c.odds, book:c.book, mp:+c.mp.toFixed(4), evp:+c.ev.toFixed(4), why, stake, ...(k!=null?{usd:roundUsd(stake*k)}:{}), result:'pending'}); n++; };
+    SHADOW.push({id, ts:new Date().toISOString(), ko:c.tip, ev:c.evId, game:c.game, key:c.key, player:c.name, market:c.market, odds:c.odds, book:c.book, mp:+c.mp.toFixed(4), evp:+c.ev.toFixed(4), ...(c.nOth!=null?{nOth:c.nOth, ...(c.nNear?{nNear:1}:{})}:{}), why, stake, ...(k!=null?{usd:roundUsd(stake*k)}:{}), result:'pending'}); n++; };
   for(const c of CANDS.filter(c=>c.tier==='filtered'&&!c.dup).sort((a,b)=>b.kelly-a.kelly)) add(c, c.why, Math.max(0.1, Math.min(BET_CAP, Math.round(0.25*STAKE_SCALE*c.kelly*UNITS*10)/10)));
   for(const c of (paper||[])) add(c, ['paper'], c.stake);
   if(n){ if(SHADOW.length>5000) SHADOW=SHADOW.slice(-5000); saveShadow(); syncSoon(); } }
@@ -840,7 +855,7 @@ function undoLog(){ if(!UNDO) return; const ids=new Set(UNDO), n0=bets.length; b
 // one bet per player per stat: a second bet on the same player's stat (any line, either side) is refused
 function logBet(c, stake){ if(bets.some(b=>b.result==='pending'&&b.game===c.game&&b.key===c.key&&statOf(b.market)===statOf(c.market))) return false; const k=unitUsd();
   bets.unshift({id:Date.now()+'_'+Math.round(Math.random()*1e6), ts:new Date().toISOString(), ko:c.tip, ev:c.evId, game:c.game, key:c.key, player:c.name, market:c.market, odds:c.odds, book:c.book,
-    modelProb:+c.mp.toFixed(4), rawP:+c.model.toFixed(4), ...(c.mkt!=null?{mktP:+c.mkt.toFixed(4)}:{}), pmu:+c.mu.toFixed(2), stake:+(+stake).toFixed(1), ...(k!=null?{usd:roundUsd(stake*k)}:{}), closeOdds:'', result:'pending'}); noteLogged(bets[0].id);
+    modelProb:+c.mp.toFixed(4), rawP:+c.model.toFixed(4), ...(c.mkt!=null?{mktP:+c.mkt.toFixed(4)}:{}), pmu:+c.mu.toFixed(2), ...(c.nOth!=null?{nOth:c.nOth, ...(c.nNear?{nNear:1}:{})}:{}), stake:+(+stake).toFixed(1), ...(k!=null?{usd:roundUsd(stake*k)}:{}), closeOdds:'', result:'pending'}); noteLogged(bets[0].id);
   return true; }
 
 // ---------------------------------------------------------------- rendering
