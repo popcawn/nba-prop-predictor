@@ -273,3 +273,9 @@ See README.md for the model and its backtest.
 - Tested 2026-11-11 in a local copy (fake Odds API, fake ESPN, fake gist): one player's bets held to 3u in total; sync =
   GET + PATCH, one GET 8 s later that brought in another device's bet, then silence.
 - Still open from the audit: push-line EV (rare here — the books post half-point lines).
+
+## 🤖 Hourly paper pulls (2026-11-17, user: "create a timer that pulls nba odds every hour" -> "Hourly, last 6 h before tip")
+- The bot lives in the NHL repo (`closes/nba-paper.mjs`, a step of closes.yml — see that CLAUDE.md). It opens THIS page
+  (live) headless and calls `window.__nbaBot` (end of the template: pull(game) = pullAll(game), sync() = syncNow(true),
+  state()). Keep that hook's names when refactoring. Points / rebounds / assists only, hourly from 6 h before each tip,
+  so background bets are recorded without the user pressing ⚡ Pull (manual pulls still work and dedupe by id).

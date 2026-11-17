@@ -1212,6 +1212,13 @@ opened().then(()=>setTimeout(autoCloses, 8000)); setInterval(()=>{ if(!document.
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') autoCloses(); });
 // opened after being built in the background: catch up on the pot
 document.addEventListener('prerenderingchange', ()=>{ BANK=Object.assign({amt:null, at:0, mt:0}, lsJ('nfltd_bank', {})); renderAll(); });
+// 🤖 HOURLY PAPER PULLS (user, 2026-11-17: "create a timer that pulls nba odds every hour" -> "Hourly, last 6 h before tip"):
+// nhl-prop-predictor/closes/nba-paper.mjs opens THIS page in a headless browser on GitHub and presses ⚡ Pull for one game
+// at a time, so the background bets come from the app's own rules. It only reads state and calls the same pull and sync a
+// click would; nothing here runs unless the bot calls it
+window.__nbaBot={ pull:only=>pullAll(only), sync:()=>syncNow(true),
+  state:()=>({slate:SLATE.map(g=>({game:g.game, tip:g.tip, state:g.state})), shadow:SHADOW.length, paper:SHADOW.filter(r=>(r.why||[]).includes('paper')).length,
+    syncOk:SYNC_OK, syncErr:SYNC_ERR, syncBusy, left:oddsLeft, msg:($('pullMsg')||{}).textContent||'', mk:pickedMarkets(), bank:unitUsd()}) };
 })();
 </script>
 <i id="sims-ready" hidden></i>
